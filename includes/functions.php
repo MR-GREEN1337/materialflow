@@ -53,12 +53,33 @@ function get_project_status_label($status) {
 }
 
 /**
- * Upload a file
+ * Upload a file with improved error handling
  */
 function upload_file($file, $target_dir) {
+    // Check if file upload is valid
+    if (!isset($file) || !is_array($file) || empty($file['tmp_name']) || $file['error'] != 0) {
+        return [
+            'success' => false,
+            'error' => 'Invalid file upload: ' . get_upload_error_message($file['error'] ?? 4)
+        ];
+    }
+    
     // Check if target directory exists, create if not
     if (!file_exists($target_dir)) {
-        mkdir($target_dir, 0755, true);
+        if (!mkdir($target_dir, 0755, true)) {
+            return [
+                'success' => false,
+                'error' => 'Failed to create upload directory: ' . error_get_last()['message']
+            ];
+        }
+    }
+    
+    // Check if directory is writable
+    if (!is_writable($target_dir)) {
+        return [
+            'success' => false,
+            'error' => 'Upload directory is not writable: ' . $target_dir
+        ];
     }
     
     // Generate unique filename
@@ -74,13 +95,37 @@ function upload_file($file, $target_dir) {
             'path' => $target_file
         ];
     } else {
+        $error_message = error_get_last() ? error_get_last()['message'] : 'Unknown error';
         return [
             'success' => false,
-            'error' => 'Failed to upload file'
+            'error' => 'Failed to upload file: ' . $error_message
         ];
     }
 }
 
+/**
+ * Get descriptive message for upload error code
+ */
+function get_upload_error_message($error_code) {
+    switch ($error_code) {
+        case UPLOAD_ERR_INI_SIZE:
+            return 'The uploaded file exceeds the upload_max_filesize directive in php.ini';
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'The uploaded file exceeds the MAX_FILE_SIZE directive in the HTML form';
+        case UPLOAD_ERR_PARTIAL:
+            return 'The uploaded file was only partially uploaded';
+        case UPLOAD_ERR_NO_FILE:
+            return 'No file was uploaded';
+        case UPLOAD_ERR_NO_TMP_DIR:
+            return 'Missing a temporary folder';
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'Failed to write file to disk';
+        case UPLOAD_ERR_EXTENSION:
+            return 'A PHP extension stopped the file upload';
+        default:
+            return 'Unknown upload error';
+    }
+}
 /**
  * Get file type icon
  */

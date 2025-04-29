@@ -275,3 +275,131 @@ function return_equipment($project_equipment_id, $return_date, $status_on_return
         $conn->close();
     }
 }
+
+/**
+ * Add image to equipment
+ */
+function add_equipment_image($equipment_id, $file, $caption = '', $is_primary = 0) {
+    // Set target directory for equipment images
+    $target_dir = "../uploads/equipment/";
+    
+    // Check if directory exists, create if not
+    if (!file_exists($target_dir)) {
+        mkdir($target_dir, 0755, true);
+    }
+    
+    // Upload the file
+    $upload_result = upload_file($file, $target_dir);
+    
+    if (!$upload_result['success']) {
+        return [
+            'success' => false,
+            'message' => 'Failed to upload image: ' . $upload_result['error']
+        ];
+    }
+    
+    // If this is set as primary, reset other primary images
+    if ($is_primary) {
+        $resetSql = "UPDATE equipment_images SET is_primary = 0 WHERE equipment_id = ?";
+        query($resetSql, [$equipment_id]);
+    }
+    
+    // Insert image record into database
+    $sql = "INSERT INTO equipment_images (equipment_id, file_name, file_path, caption, is_primary)
+            VALUES (?, ?, ?, ?, ?)";
+    
+    $params = [
+        $equipment_id,
+        $upload_result['filename'],
+        $upload_result['path'],
+        $caption,
+        $is_primary ? 1 : 0
+    ];
+    
+    $result = query($sql, $params);
+    
+    if ($result['affected_rows'] === 1) {
+        return [
+            'success' => true,
+            'image_id' => $result['insert_id'],
+            'file_path' => $upload_result['path']
+        ];
+    } else {
+        return [
+            'success' => false,
+            'message' => 'Failed to save image information to database'
+        ];
+    }
+}
+
+/**
+ * Get images for equipment
+ */
+function get_equipment_images($equipment_id) {
+    $sql = "SELECT * FROM equipment_images WHERE equipment_id = ? ORDER BY is_primary DESC, uploaded_at DESC";
+    return query($sql, [$equipment_id]);
+}
+
+/**
+ * Delete equipment image
+ */
+function delete_equipment_image($image_id) {
+    // Get image info first to delete the file
+    $sql = "SELECT file_path FROM equipment_images WHERE id = ?";
+    $result = query($sql, [$image_id]);
+    
+    if (empty($result)) {
+        return [
+            'success' => false,
+            'message' => 'Image not found'
+        ];
+    }
+    
+    $file_path = $result[0]['file_path'];
+    
+    // Delete file if it exists
+    if (file_exists($file_path)) {
+        unlink($file_path);
+    }
+    
+    // Delete database record
+    $deleteSql = "DELETE FROM equipment_images WHERE id = ?";
+    $deleteResult = query($deleteSql, [$image_id]);
+    
+    if ($deleteResult['affected_rows'] === 1) {
+        return [
+            'success' => true
+        ];
+    } else {
+        return [
+            'success' => false,
+            'message' => 'Failed to delete image record'
+        ];
+    }
+}
+
+/**
+ * Set image as primary for equipment
+ */
+function set_primary_equipment_image($image_id, $equipment_id) {
+    // Reset all primary images for this equipment
+    $resetSql = "UPDATE equipment_images SET is_primary = 0 WHERE equipment_id = ?";
+    query($resetSql, [$equipment_id]);
+    
+    // Set the selected image as primary
+    $setPrimarySql = "UPDATE equipment_images SET is_primary = 1 WHERE id = ? AND equipment_id = ?";
+    $result = query($setPrimarySql, [$image_id, $equipment_id]);
+    
+    if ($result['affected_rows'] === 1) {
+        return [
+            'success' => true
+        ];
+    } else {
+        return [
+            'success' => false,
+            'message' => 'Failed to set image as primary'
+        ];
+    }
+}
+
+?>

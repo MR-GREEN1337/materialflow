@@ -90,6 +90,18 @@ CREATE TABLE project_students (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+-- Create equipment_images table
+CREATE TABLE IF NOT EXISTS equipment_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    caption VARCHAR(255),
+    is_primary BOOLEAN DEFAULT 0,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE
+);
+
 -- Insert an admin user (password: admin123)
 INSERT INTO users (student_id, password_hash, name, role) 
 VALUES ('admin', '$2y$10$8JmVBe1MKdOUZPFZzIRUWusGxZRIQhXz2eRnrjXGQZr07JtKKVZFi', 'Administrator', 'admin');
