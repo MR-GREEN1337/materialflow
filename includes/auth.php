@@ -7,6 +7,26 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../config/database.php';
 
 /**
+ * Get the base URL with the subfolder
+ */
+function getBaseUrl() {
+    $currentPath = $_SERVER['PHP_SELF'];
+    $pathInfo = pathinfo($currentPath);
+    $hostName = $_SERVER['HTTP_HOST'];
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+    
+    // Check if we're in a subdirectory (like pages or includes)
+    if (strpos($pathInfo['dirname'], '/pages') !== false) {
+        return $protocol . $hostName . substr($pathInfo['dirname'], 0, strpos($pathInfo['dirname'], '/pages'));
+    } elseif (strpos($pathInfo['dirname'], '/includes') !== false) {
+        return $protocol . $hostName . substr($pathInfo['dirname'], 0, strpos($pathInfo['dirname'], '/includes'));
+    } else {
+        // We're in the root of the application
+        return $protocol . $hostName . $pathInfo['dirname'];
+    }
+}
+
+/**
  * Authenticate user by student ID only (as per requirements)
  * 
  * @param string $student_id The student ID
@@ -30,9 +50,14 @@ function login($student_id) {
         $_SESSION['role'] = $users[0]['role'];
         $_SESSION['logged_in'] = true;
         
-        // Update last login time (optional)
-        $updateSql = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?";
-        query($updateSql, [$users[0]['id']]);
+        // Update last login time if the column exists
+        try {
+            $updateSql = "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?";
+            query($updateSql, [$users[0]['id']]);
+        } catch (Exception $e) {
+            // Silently ignore if the column doesn't exist
+            // We'll still allow login even if we can't update last_login
+        }
         
         return true;
     }
@@ -102,7 +127,8 @@ function logout() {
  */
 function require_login() {
     if (!is_logged_in()) {
-        header('Location: /login.php');
+        $baseUrl = getBaseUrl();
+        header("Location: {$baseUrl}/login.php");
         exit;
     }
 }
@@ -114,7 +140,8 @@ function require_admin() {
     require_login();
     
     if (!is_admin()) {
-        header('Location: /index.php?error=unauthorized');
+        $baseUrl = getBaseUrl();
+        header("Location: {$baseUrl}/index.php?error=unauthorized");
         exit;
     }
 }

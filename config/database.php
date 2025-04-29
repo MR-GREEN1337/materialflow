@@ -1,15 +1,15 @@
 <?php
 // Create database connection
 function connect_db() {
-    $connection = new mysqli('tp-epua:3308', 'hachimii', 'OZ8Gybv2', 'hachimii');
+    // XAMPP default configuration
+    $connection = new mysqli('localhost', 'root', '', 'equipment_tracking');
     
-
     // Set character set
     $connection->set_charset("utf8");
 
-        // Check connection
+    // Check connection
     if ($connection->connect_error) {
-        die("Échec de la connexion à la base de données: " . $connection->connect_error);
+        die("Connection failed: " . $connection->connect_error);
     }
     
     return $connection;
@@ -28,6 +28,7 @@ function query($sql, $params = []) {
         $types = '';
         $bindParams = [];
         
+        // Build the types string first
         foreach ($params as $param) {
             if (is_int($param)) {
                 $types .= 'i';
@@ -39,9 +40,17 @@ function query($sql, $params = []) {
             $bindParams[] = $param;
         }
         
-        array_unshift($bindParams, $types);
+        // Convert params to references for bind_param
+        $bindParamRefs = [];
+        $bindParamRefs[] = $types;
         
-        call_user_func_array([$stmt, 'bind_param'], $bindParams);
+        for ($i = 0; $i < count($bindParams); $i++) {
+            // This creates a reference to each element
+            $bindParamRefs[] = &$bindParams[$i];
+        }
+        
+        // Call bind_param with references
+        call_user_func_array([$stmt, 'bind_param'], $bindParamRefs);
     }
     
     $result = $stmt->execute();
