@@ -1,5 +1,7 @@
 <?php
 // Start session if not already started
+ob_start();
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -145,3 +147,5 @@ function require_admin() {
         exit;
     }
 }
+
+?>

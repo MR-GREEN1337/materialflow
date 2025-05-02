@@ -24,7 +24,7 @@ if ($conn->query($sql) === TRUE) {
 }
 
 // Create uploads directory if it doesn't exist
-$uploads_dir = __DIR__ . '/uploads/equipment';
+$uploads_dir = __DIR__ . '../upload_tmp/';
 if (!file_exists($uploads_dir)) {
     if (mkdir($uploads_dir, 0755, true)) {
         echo "Created uploads directory at: $uploads_dir<br>";

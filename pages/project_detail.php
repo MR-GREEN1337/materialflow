@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Handle file upload if there is one
             if (isset($_FILES['resource_file']) && $_FILES['resource_file']['size'] > 0) {
-                $target_dir = "../uploads/resources/";
+                $target_dir = "../../upload_tmp/";
                 $upload_result = upload_file($_FILES['resource_file'], $target_dir);
                 
                 if ($upload_result['success']) {

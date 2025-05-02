@@ -91,21 +91,19 @@ if ($action === 'set_primary_image' && $equipment_id && $image_id && is_admin())
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle image upload
     if (isset($_POST['upload_image']) && $equipment_id) {
-        if (isset($_FILES['equipment_image']) && $_FILES['equipment_image']['size'] > 0) {
-            $caption = isset($_POST['image_caption']) ? trim($_POST['image_caption']) : '';
-            $is_primary = isset($_POST['is_primary']) ? 1 : 0;
-            
-            $result = add_equipment_image($equipment_id, $_FILES['equipment_image'], $caption, $is_primary);
-            
-            if ($result['success']) {
-                $_SESSION['success_message'] = 'Image uploaded successfully.';
-                header('Location: equipment_detail.php?id=' . $equipment_id);
-                exit;
+        if (isset($_POST['upload_image']) && $equipment_id) {
+            if (isset($_FILES['equipment_image'])) {
+                // Debugging output
+                var_dump($_FILES['equipment_image']);
+                echo implode("", $_FILES['equipment_image']);
+                if ($_FILES['equipment_image']['size'] > 0) {
+                    // Proceed with the upload
+                } else {
+                    $error_message = 'Please select an image to upload.';
+                }
             } else {
-                $error_message = $result['message'] ?? 'Failed to upload image.';
+                $error_message = 'File input not set.';
             }
-        } else {
-            $error_message = 'Please select an image to upload.';
         }
     }
     

@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // Start session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -124,7 +125,7 @@ if (is_logged_in()) {
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
-                    Equipment Tracking
+                    MaterialFlow
                 </a>
             </div>
             

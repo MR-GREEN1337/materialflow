@@ -1,9 +1,9 @@
 <?php
 // Database configuration
-$db_host = 'localhost';
-$db_user = 'root';
-$db_password = '';
-$db_name = 'equipment_tracking';
+$db_host = 'tp-epua:3308';
+$db_user = 'hachimii';
+$db_password = 'OZ8Gybv2';
+$db_name = 'hachimii';
 
 // Create connection
 $conn = new mysqli($db_host, $db_user, $db_password);

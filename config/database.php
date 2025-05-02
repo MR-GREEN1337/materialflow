@@ -1,8 +1,13 @@
 <?php
 // Create database connection
 function connect_db() {
-    // XAMPP default configuration
-    $connection = new mysqli('localhost', 'root', '', 'equipment_tracking');
+    $db_host = 'tp-epua:3308';
+    $db_user = 'hachimii';
+    $db_password = 'OZ8Gybv2';
+    $db_name = 'hachimii';
+    
+    // Create connection
+    $connection = new mysqli($db_host, $db_user, $db_password, $db_name );
     
     // Set character set
     $connection->set_charset("utf8");

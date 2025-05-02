@@ -281,7 +281,7 @@ function return_equipment($project_equipment_id, $return_date, $status_on_return
  */
 function add_equipment_image($equipment_id, $file, $caption = '', $is_primary = 0) {
     // Set target directory for equipment images
-    $target_dir = "../uploads/equipment/";
+    $target_dir = "../../upload_tmp/";
     
     // Check if directory exists, create if not
     if (!file_exists($target_dir)) {
