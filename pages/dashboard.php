@@ -42,89 +42,25 @@ FROM projects";
 $projectsResult = $conn->query($projectsQuery);
 $projects = $projectsResult->fetch_assoc();
 
-// Get activities - first try to get equipment checkout/returns
+// Initialize activities array
 $activities = [];
 
-// Get equipment checkouts/returns
-$checkoutQuery = "SELECT 
-    pe.id, 
-    p.id AS project_id, 
-    p.title AS project_title, 
-    e.id AS equipment_id, 
-    e.name AS equipment_name, 
-    pe.checkout_date, 
-    pe.return_date, 
-    pe.notes,
-    'checkout_return' AS activity_type,
-    CASE 
-        WHEN pe.return_date IS NOT NULL THEN pe.return_date 
-        ELSE pe.checkout_date 
-    END AS activity_date
-FROM project_equipment pe
-JOIN projects p ON pe.project_id = p.id
-JOIN equipment e ON pe.equipment_id = e.id";
+// Check if last_login column exists in users table
+$checkLastLoginColumnQuery = "SHOW COLUMNS FROM users LIKE 'last_login'";
+$lastLoginExists = ($conn->query($checkLastLoginColumnQuery)->num_rows > 0);
 
-// Get recently added equipment
-$equipmentAddedQuery = "SELECT 
-    id AS equipment_id, 
-    name AS equipment_name, 
-    created_at AS activity_date,
-    'equipment_added' AS activity_type
-FROM equipment";
-
-// Get recently added projects
-$projectAddedQuery = "SELECT 
-    id AS project_id, 
-    title AS project_title, 
-    created_at AS activity_date,
-    'project_added' AS activity_type
-FROM projects";
-
-// Combine all activities with UNION
-$activitiesQuery = "
-    SELECT * FROM (
-        $checkoutQuery
-        UNION ALL
-        SELECT 
-            NULL as id, 
-            NULL as project_id, 
-            NULL as project_title, 
-            equipment_id, 
-            equipment_name, 
-            NULL as checkout_date, 
-            NULL as return_date, 
-            NULL as notes, 
-            activity_type,
-            activity_date 
-        FROM ($equipmentAddedQuery) AS e
-        UNION ALL
-        SELECT 
-            NULL as id, 
-            project_id, 
-            project_title, 
-            NULL as equipment_id, 
-            NULL as equipment_name, 
-            NULL as checkout_date, 
-            NULL as return_date, 
-            NULL as notes, 
-            activity_type,
-            activity_date 
-        FROM ($projectAddedQuery) AS p
-    ) as combined_activities
-    ORDER BY activity_date DESC
-    LIMIT 10";
-
-$activitiesResult = $conn->query($activitiesQuery);
-
-// Check for SQL errors
-if (!$activitiesResult) {
-    // For debugging, show the SQL error
-    $error = $conn->error;
-    error_log("SQL Error in activities query: $error");
-    
-    // Fallback to just equipment checkout/returns
-    $activitiesQuery = "SELECT pe.id, p.id AS project_id, p.title AS project_title, e.id AS equipment_id, 
-        e.name AS equipment_name, pe.checkout_date, pe.return_date, pe.notes, 
+// Using a safe approach to collect activities
+try {
+    // Get equipment checkouts/returns
+    $checkoutQuery = "SELECT 
+        pe.id, 
+        p.id AS project_id, 
+        p.title AS project_title, 
+        e.id AS equipment_id, 
+        e.name AS equipment_name, 
+        pe.checkout_date, 
+        pe.return_date, 
+        pe.notes,
         'checkout_return' AS activity_type,
         CASE 
             WHEN pe.return_date IS NOT NULL THEN pe.return_date 
@@ -134,56 +70,96 @@ if (!$activitiesResult) {
     JOIN projects p ON pe.project_id = p.id
     JOIN equipment e ON pe.equipment_id = e.id
     ORDER BY activity_date DESC
-    LIMIT 10";
+    LIMIT 5";
     
-    $activitiesResult = $conn->query($activitiesQuery);
-}
-
-// Fetch the activity data
-if ($activitiesResult && $activitiesResult->num_rows > 0) {
-    while ($row = $activitiesResult->fetch_assoc()) {
-        $activities[] = $row;
+    $checkoutResult = $conn->query($checkoutQuery);
+    if ($checkoutResult && $checkoutResult->num_rows > 0) {
+        while ($row = $checkoutResult->fetch_assoc()) {
+            $activities[] = $row;
+        }
     }
-}
-
-// If still no activities, try a simpler approach - get last created equipment and projects
-if (empty($activities)) {
-    // Get most recent equipment
-    $recentEquipmentQuery = "SELECT 
+    
+    // Get recently added equipment
+    $equipmentAddedQuery = "SELECT 
         id AS equipment_id, 
         name AS equipment_name, 
         created_at AS activity_date,
         'equipment_added' AS activity_type 
     FROM equipment 
     ORDER BY created_at DESC 
-    LIMIT 5";
+    LIMIT 3";
     
-    $recentEquipmentResult = $conn->query($recentEquipmentQuery);
-    if ($recentEquipmentResult && $recentEquipmentResult->num_rows > 0) {
-        while ($row = $recentEquipmentResult->fetch_assoc()) {
+    $equipmentResult = $conn->query($equipmentAddedQuery);
+    if ($equipmentResult && $equipmentResult->num_rows > 0) {
+        while ($row = $equipmentResult->fetch_assoc()) {
             $activities[] = $row;
         }
     }
     
-    // Get most recent projects
-    $recentProjectsQuery = "SELECT 
+    // Get recently added projects
+    $projectAddedQuery = "SELECT 
         id AS project_id, 
         title AS project_title, 
         created_at AS activity_date,
         'project_added' AS activity_type 
     FROM projects 
     ORDER BY created_at DESC 
-    LIMIT 5";
+    LIMIT 3";
     
-    $recentProjectsResult = $conn->query($recentProjectsQuery);
-    if ($recentProjectsResult && $recentProjectsResult->num_rows > 0) {
-        while ($row = $recentProjectsResult->fetch_assoc()) {
+    $projectResult = $conn->query($projectAddedQuery);
+    if ($projectResult && $projectResult->num_rows > 0) {
+        while ($row = $projectResult->fetch_assoc()) {
             $activities[] = $row;
         }
     }
     
-    // Sort by date
+    // Get user activities
+    $userAddedQuery = "SELECT 
+        id AS user_id, 
+        CONCAT(name, ' (', student_id, ')') AS user_name,
+        created_at AS activity_date,
+        'user_added' AS activity_type
+    FROM users
+    ORDER BY created_at DESC
+    LIMIT 2";
+    
+    $userResult = $conn->query($userAddedQuery);
+    if ($userResult && $userResult->num_rows > 0) {
+        while ($row = $userResult->fetch_assoc()) {
+            $activities[] = $row;
+        }
+    }
+    
+    // Get login activities if last_login column exists
+    if ($lastLoginExists) {
+        $loginQuery = "SELECT 
+            id AS user_id, 
+            CONCAT(name, ' (', student_id, ')') AS user_name,
+            last_login AS activity_date,
+            'user_login' AS activity_type
+        FROM users 
+        WHERE last_login IS NOT NULL
+        ORDER BY last_login DESC
+        LIMIT 2";
+        
+        $loginResult = $conn->query($loginQuery);
+        if ($loginResult && $loginResult->num_rows > 0) {
+            while ($row = $loginResult->fetch_assoc()) {
+                $activities[] = $row;
+            }
+        }
+    }
+} catch (Exception $e) {
+    // Log the error
+    error_log("Error fetching activities: " . $e->getMessage());
+}
+
+// Sort activities by date
+if (!empty($activities)) {
     usort($activities, function($a, $b) {
+        if (!isset($a['activity_date']) || !isset($b['activity_date'])) {
+            return 0;
+        }
         return strtotime($b['activity_date']) - strtotime($a['activity_date']);
     });
     
@@ -293,6 +269,10 @@ $conn->close();
                                                 <span class="badge status-available">Equipment Added</span>
                                             <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'project_added'): ?>
                                                 <span class="badge status-in-use">Project Created</span>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'user_added'): ?>
+                                                <span class="badge" style="background-color: rgba(139, 92, 246, 0.1); color: #8b5cf6;">User Added</span>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'user_login'): ?>
+                                                <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981;">User Login</span>
                                             <?php elseif (isset($activity['return_date']) && $activity['return_date']): ?>
                                                 <span class="badge status-available">Equipment Returned</span>
                                             <?php else: ?>
@@ -300,7 +280,15 @@ $conn->close();
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if (isset($activity['equipment_name']) && $activity['equipment_name']): ?>
+                                            <?php if (isset($activity['activity_type']) && ($activity['activity_type'] == 'user_added' || $activity['activity_type'] == 'user_login')): ?>
+                                                <?php if (is_admin() && isset($activity['user_id'])): ?>
+                                                    <a href="users.php?action=edit&id=<?php echo $activity['user_id']; ?>">
+                                                        <?php echo htmlspecialchars($activity['user_name']); ?>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <?php echo htmlspecialchars($activity['user_name'] ?? '(User)'); ?>
+                                                <?php endif; ?>
+                                            <?php elseif (isset($activity['equipment_name']) && $activity['equipment_name']): ?>
                                                 <a href="equipment_detail.php?id=<?php echo $activity['equipment_id']; ?>">
                                                     <?php echo htmlspecialchars($activity['equipment_name']); ?>
                                                 </a>
@@ -330,6 +318,14 @@ $conn->close();
                                                 <a href="equipment_detail.php?id=<?php echo $activity['equipment_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Equipment</a>
                                             <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'project_added'): ?>
                                                 <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Project</a>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'user_added' && is_admin() && isset($activity['user_id'])): ?>
+                                                <a href="users.php?action=edit&id=<?php echo $activity['user_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View User</a>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'user_login'): ?>
+                                                <?php if (is_admin() && isset($activity['user_id'])): ?>
+                                                    <a href="users.php?action=edit&id=<?php echo $activity['user_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View User</a>
+                                                <?php else: ?>
+                                                    <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #10b981;">Successful Login</span>
+                                                <?php endif; ?>
                                             <?php elseif (isset($activity['id']) && isset($activity['return_date']) && $activity['return_date']): ?>
                                                 <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Details</a>
                                             <?php elseif (isset($activity['id'])): ?>
@@ -390,6 +386,16 @@ $conn->close();
                             <path d="M20.27 17.27L22 19"></path>
                         </svg>
                         <span style="font-weight: 500;">Checkout Equipment</span>
+                    </a>
+                    
+                    <a href="users.php" class="card" style="margin-bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; text-align: center; text-decoration: none; color: var(--foreground);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.75rem;">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span style="font-weight: 500;">Manage Users</span>
                     </a>
                     <?php endif; ?>
                 </div>

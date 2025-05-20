@@ -370,7 +370,7 @@ if (is_logged_in()) {
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                     </div>
-                    <h3 class="contributor-name">Anas Draoui</h3>
+                    <h3 class="contributor-name">Mohammed Anas Draoui</h3>
                 </div>
                 <div class="contributor-card">
                     <div class="contributor-icon">
