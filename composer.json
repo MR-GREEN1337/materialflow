@@ -1,0 +1,11 @@
+{
+    "require": {
+        "aws/aws-sdk-php": "^3.273",
+        "php": ">=7.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}

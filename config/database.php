@@ -1,10 +1,16 @@
 <?php
 // Create database connection
 function connect_db() {
+    /*
     $db_host = 'tp-epua:3308';
     $db_user = 'hachimii';
     $db_password = 'OZ8Gybv2';
     $db_name = 'hachimii';
+    */
+    $db_host = 'localhost';
+    $db_user = 'root';
+    $db_password = '';
+    $db_name = 'equipment_tracking';
     
     // Create connection
     $connection = new mysqli($db_host, $db_user, $db_password, $db_name );

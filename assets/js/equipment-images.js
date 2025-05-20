@@ -1,136 +1,100 @@
-/**
- * Equipment images related JavaScript for Equipment Tracking System
- */
+// equipment-images.js - Updated for S3 integration
 
-// Document ready function
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize image preview
-    initImagePreview();
-    
-    // Initialize image gallery
-    initImageGallery();
-});
-
-/**
- * Initialize image preview before upload
- */
-function initImagePreview() {
+    // Image file input preview
     const imageInput = document.getElementById('equipment_image');
     const previewContainer = document.getElementById('image-preview-container');
+    const captionContainer = document.getElementById('image-caption-container');
     
-    if (!imageInput || !previewContainer) return;
+    if (imageInput) {
+        imageInput.addEventListener('change', function() {
+            // Clear previous preview
+            previewContainer.innerHTML = '';
+            
+            // Check if a file was selected
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                
+                // Check file type
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!validTypes.includes(file.type)) {
+                    previewContainer.innerHTML = '<div class="error-message">Invalid file type. Please select a JPG, PNG, or GIF image.</div>';
+                    captionContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Check file size (10MB max)
+                if (file.size > 10 * 1024 * 1024) {
+                    previewContainer.innerHTML = '<div class="error-message">File is too large. Maximum size is 10MB.</div>';
+                    captionContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Create and show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `
+                        <div class="image-preview-container">
+                            <h4>Image Preview</h4>
+                            <img src="${e.target.result}" class="image-preview" alt="Preview">
+                        </div>
+                    `;
+                    
+                    // Show caption input
+                    captionContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // Hide caption input if no file
+                captionContainer.style.display = 'none';
+            }
+        });
+    }
     
-    imageInput.addEventListener('change', function() {
-        // Clear previous preview
-        previewContainer.innerHTML = '';
-        
-        if (this.files && this.files.length > 0) {
-            const file = this.files[0];
-            
-            // Check if file is an image
-            if (!file.type.match('image.*')) {
-                previewContainer.innerHTML = '<p class="error-message">Please select an image file.</p>';
-                return;
-            }
-            
-            // Create preview
-            const img = document.createElement('img');
-            img.classList.add('image-preview');
-            img.file = file;
-            
-            previewContainer.appendChild(img);
-            
-            const reader = new FileReader();
-            reader.onload = (function(aImg) { 
-                return function(e) { 
-                    aImg.src = e.target.result; 
-                }; 
-            })(img);
-            
-            reader.readAsDataURL(file);
-            
-            // Show caption field after image is selected
-            const captionContainer = document.getElementById('image-caption-container');
-            if (captionContainer) {
-                captionContainer.style.display = 'block';
-            }
-        }
-    });
-}
-
-/**
- * Initialize image gallery with lightbox effect
- */
-function initImageGallery() {
-    const galleryImages = document.querySelectorAll('.equipment-image-thumbnail');
+    // Lightbox functionality for image viewing
     const lightbox = document.getElementById('image-lightbox');
     const lightboxImg = document.getElementById('lightbox-img');
     const lightboxCaption = document.getElementById('lightbox-caption');
     const lightboxClose = document.getElementById('lightbox-close');
     
-    if (!galleryImages.length || !lightbox || !lightboxImg) return;
-    
-    // Open lightbox when clicking on thumbnail
-    galleryImages.forEach(img => {
-        img.addEventListener('click', function() {
-            const fullSrc = this.getAttribute('data-full-img');
-            const caption = this.getAttribute('data-caption');
-            
-            lightboxImg.src = fullSrc;
-            if (lightboxCaption) {
-                lightboxCaption.textContent = caption || '';
-            }
-            
+    // Open lightbox when clicking on a thumbnail
+    const thumbnails = document.querySelectorAll('.equipment-image-thumbnail');
+    thumbnails.forEach(thumbnail => {
+        thumbnail.addEventListener('click', function() {
+            lightboxImg.src = this.dataset.fullImg; // This will now be an S3 URL
+            lightboxCaption.textContent = this.dataset.caption || '';
             lightbox.style.display = 'flex';
             document.body.style.overflow = 'hidden'; // Prevent scrolling when lightbox is open
         });
     });
     
-    // Close lightbox when clicking on close button
+    // Close lightbox
     if (lightboxClose) {
         lightboxClose.addEventListener('click', function() {
-            closeLightbox();
+            lightbox.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Re-enable scrolling
         });
     }
     
-    // Close lightbox when clicking outside image
-    lightbox.addEventListener('click', function(e) {
-        if (e.target === lightbox) {
-            closeLightbox();
-        }
-    });
-    
-    // Close lightbox when pressing Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && lightbox.style.display === 'flex') {
-            closeLightbox();
-        }
-    });
-}
-
-/**
- * Close the lightbox
- */
-function closeLightbox() {
-    const lightbox = document.getElementById('image-lightbox');
+    // Also close when clicking outside the image
     if (lightbox) {
-        lightbox.style.display = 'none';
-        document.body.style.overflow = 'auto'; // Re-enable scrolling
+        lightbox.addEventListener('click', function(e) {
+            if (e.target === lightbox) {
+                lightbox.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
     }
-}
+});
 
-/**
- * Confirm before deleting image
- */
+// Confirm delete image
 function confirmDeleteImage(imageId, equipmentId) {
-    if (confirm('Are you sure you want to delete this image?')) {
+    if (confirm('Are you sure you want to delete this image? This will remove it from S3 storage and cannot be undone.')) {
         window.location.href = `equipment_detail.php?id=${equipmentId}&action=delete_image&image_id=${imageId}`;
     }
 }
 
-/**
- * Set image as primary
- */
+// Set image as primary
 function setPrimaryImage(imageId, equipmentId) {
     window.location.href = `equipment_detail.php?id=${equipmentId}&action=set_primary_image&image_id=${imageId}`;
 }
