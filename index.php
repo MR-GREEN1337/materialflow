@@ -23,7 +23,7 @@ if (is_logged_in()) {
     <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         .hero {
             background-color: var(--secondary);
@@ -99,6 +99,109 @@ if (is_logged_in()) {
             font-size: 0.875rem;
         }
         
+        /* Contributors Section */
+        .contributors {
+            padding: 4rem 0;
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        
+        .contributors h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--foreground);
+            position: relative;
+            display: inline-block;
+        }
+        
+        .contributors h2:after {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: var(--primary);
+        }
+        
+        .contributors-subtitle {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+            font-size: 1rem;
+            color: var(--muted-foreground);
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .contributors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .contributor-card {
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .contributor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .contributor-card:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary) 0%, #4158d0 100%);
+        }
+        
+        .contributor-name {
+            font-family: 'Playfair Display', serif;
+            font-weight: 500;
+            font-size: 1.25rem;
+            margin: 0.5rem 0;
+            color: var(--foreground);
+        }
+        
+        .contributor-role {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+            margin-bottom: 0.5rem;
+        }
+        
+        .contributor-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            border: 2px solid var(--primary);
+        }
+        
         @media (max-width: 640px) {
             .cta-buttons {
                 flex-direction: column;
@@ -111,6 +214,10 @@ if (is_logged_in()) {
             
             .hero h1 {
                 font-size: 1.75rem;
+            }
+            
+            .contributors-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -216,6 +323,65 @@ if (is_logged_in()) {
             <a href="login.php" class="btn-secondary" style="background-color: white; color: var(--primary);">
                 Sign In Now
             </a>
+        </div>
+    </section>
+    
+    <!-- Contributors Section -->
+    <section class="contributors">
+        <div class="container">
+            <h2>Our Team</h2>
+            <p class="contributors-subtitle">Meet the brilliant minds behind MaterialFlow</p>
+            
+            <div class="contributors-grid">
+                <div class="contributor-card">
+                    <div class="contributor-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="contributor-name">Amine Abidi</h3>
+                </div>
+                
+                <div class="contributor-card">
+                    <div class="contributor-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="contributor-name">Islam Hachimi</h3>
+                </div>
+                
+                <div class="contributor-card">
+                    <div class="contributor-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="contributor-name">Houssam Eddine Syouti</h3>
+                </div>
+                
+                <div class="contributor-card">
+                    <div class="contributor-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="contributor-name">Anas Draoui</h3>
+                </div>
+                <div class="contributor-card">
+                    <div class="contributor-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="contributor-name">Ilyas Babile</h3>
+                </div>
+            </div>
         </div>
     </section>
     

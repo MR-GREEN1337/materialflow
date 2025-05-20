@@ -42,19 +42,153 @@ FROM projects";
 $projectsResult = $conn->query($projectsQuery);
 $projects = $projectsResult->fetch_assoc();
 
-// Get recent activities (equipment check-outs and returns)
-$activitiesQuery = "SELECT pe.id, p.title AS project_title, e.name AS equipment_name, 
-    pe.checkout_date, pe.return_date, pe.notes
+// Get activities - first try to get equipment checkout/returns
+$activities = [];
+
+// Get equipment checkouts/returns
+$checkoutQuery = "SELECT 
+    pe.id, 
+    p.id AS project_id, 
+    p.title AS project_title, 
+    e.id AS equipment_id, 
+    e.name AS equipment_name, 
+    pe.checkout_date, 
+    pe.return_date, 
+    pe.notes,
+    'checkout_return' AS activity_type,
+    CASE 
+        WHEN pe.return_date IS NOT NULL THEN pe.return_date 
+        ELSE pe.checkout_date 
+    END AS activity_date
 FROM project_equipment pe
 JOIN projects p ON pe.project_id = p.id
-JOIN equipment e ON pe.equipment_id = e.id
-ORDER BY 
-    CASE WHEN pe.checkout_date IS NOT NULL THEN pe.checkout_date ELSE pe.return_date END DESC
-LIMIT 10";
+JOIN equipment e ON pe.equipment_id = e.id";
+
+// Get recently added equipment
+$equipmentAddedQuery = "SELECT 
+    id AS equipment_id, 
+    name AS equipment_name, 
+    created_at AS activity_date,
+    'equipment_added' AS activity_type
+FROM equipment";
+
+// Get recently added projects
+$projectAddedQuery = "SELECT 
+    id AS project_id, 
+    title AS project_title, 
+    created_at AS activity_date,
+    'project_added' AS activity_type
+FROM projects";
+
+// Combine all activities with UNION
+$activitiesQuery = "
+    SELECT * FROM (
+        $checkoutQuery
+        UNION ALL
+        SELECT 
+            NULL as id, 
+            NULL as project_id, 
+            NULL as project_title, 
+            equipment_id, 
+            equipment_name, 
+            NULL as checkout_date, 
+            NULL as return_date, 
+            NULL as notes, 
+            activity_type,
+            activity_date 
+        FROM ($equipmentAddedQuery) AS e
+        UNION ALL
+        SELECT 
+            NULL as id, 
+            project_id, 
+            project_title, 
+            NULL as equipment_id, 
+            NULL as equipment_name, 
+            NULL as checkout_date, 
+            NULL as return_date, 
+            NULL as notes, 
+            activity_type,
+            activity_date 
+        FROM ($projectAddedQuery) AS p
+    ) as combined_activities
+    ORDER BY activity_date DESC
+    LIMIT 10";
+
 $activitiesResult = $conn->query($activitiesQuery);
-$activities = [];
-while ($row = $activitiesResult->fetch_assoc()) {
-    $activities[] = $row;
+
+// Check for SQL errors
+if (!$activitiesResult) {
+    // For debugging, show the SQL error
+    $error = $conn->error;
+    error_log("SQL Error in activities query: $error");
+    
+    // Fallback to just equipment checkout/returns
+    $activitiesQuery = "SELECT pe.id, p.id AS project_id, p.title AS project_title, e.id AS equipment_id, 
+        e.name AS equipment_name, pe.checkout_date, pe.return_date, pe.notes, 
+        'checkout_return' AS activity_type,
+        CASE 
+            WHEN pe.return_date IS NOT NULL THEN pe.return_date 
+            ELSE pe.checkout_date 
+        END AS activity_date
+    FROM project_equipment pe
+    JOIN projects p ON pe.project_id = p.id
+    JOIN equipment e ON pe.equipment_id = e.id
+    ORDER BY activity_date DESC
+    LIMIT 10";
+    
+    $activitiesResult = $conn->query($activitiesQuery);
+}
+
+// Fetch the activity data
+if ($activitiesResult && $activitiesResult->num_rows > 0) {
+    while ($row = $activitiesResult->fetch_assoc()) {
+        $activities[] = $row;
+    }
+}
+
+// If still no activities, try a simpler approach - get last created equipment and projects
+if (empty($activities)) {
+    // Get most recent equipment
+    $recentEquipmentQuery = "SELECT 
+        id AS equipment_id, 
+        name AS equipment_name, 
+        created_at AS activity_date,
+        'equipment_added' AS activity_type 
+    FROM equipment 
+    ORDER BY created_at DESC 
+    LIMIT 5";
+    
+    $recentEquipmentResult = $conn->query($recentEquipmentQuery);
+    if ($recentEquipmentResult && $recentEquipmentResult->num_rows > 0) {
+        while ($row = $recentEquipmentResult->fetch_assoc()) {
+            $activities[] = $row;
+        }
+    }
+    
+    // Get most recent projects
+    $recentProjectsQuery = "SELECT 
+        id AS project_id, 
+        title AS project_title, 
+        created_at AS activity_date,
+        'project_added' AS activity_type 
+    FROM projects 
+    ORDER BY created_at DESC 
+    LIMIT 5";
+    
+    $recentProjectsResult = $conn->query($recentProjectsQuery);
+    if ($recentProjectsResult && $recentProjectsResult->num_rows > 0) {
+        while ($row = $recentProjectsResult->fetch_assoc()) {
+            $activities[] = $row;
+        }
+    }
+    
+    // Sort by date
+    usort($activities, function($a, $b) {
+        return strtotime($b['activity_date']) - strtotime($a['activity_date']);
+    });
+    
+    // Limit to 10
+    $activities = array_slice($activities, 0, 10);
 }
 
 // Close connection
@@ -145,32 +279,66 @@ $conn->close();
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Project</th>
-                                    <th>Equipment</th>
-                                    <th>Action</th>
+                                    <th>Activity</th>
+                                    <th>Item</th>
                                     <th>Date</th>
+                                    <th>Details</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($activities as $activity): ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($activity['project_title']); ?></td>
-                                        <td><?php echo htmlspecialchars($activity['equipment_name']); ?></td>
                                         <td>
-                                            <?php if ($activity['return_date']): ?>
-                                                <span class="badge status-available">Returned</span>
+                                            <?php if (isset($activity['activity_type']) && $activity['activity_type'] == 'equipment_added'): ?>
+                                                <span class="badge status-available">Equipment Added</span>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'project_added'): ?>
+                                                <span class="badge status-in-use">Project Created</span>
+                                            <?php elseif (isset($activity['return_date']) && $activity['return_date']): ?>
+                                                <span class="badge status-available">Equipment Returned</span>
                                             <?php else: ?>
-                                                <span class="badge status-in-use">Checked Out</span>
+                                                <span class="badge status-in-use">Equipment Checked Out</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if (isset($activity['equipment_name']) && $activity['equipment_name']): ?>
+                                                <a href="equipment_detail.php?id=<?php echo $activity['equipment_id']; ?>">
+                                                    <?php echo htmlspecialchars($activity['equipment_name']); ?>
+                                                </a>
+                                            <?php elseif (isset($activity['project_title']) && $activity['project_title']): ?>
+                                                <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>">
+                                                    <?php echo htmlspecialchars($activity['project_title']); ?>
+                                                </a>
+                                            <?php else: ?>
+                                                -
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php 
-                                            if ($activity['return_date']) {
+                                            if (isset($activity['activity_date'])) {
+                                                echo format_date($activity['activity_date']);
+                                            } elseif (isset($activity['return_date']) && $activity['return_date']) {
                                                 echo format_date($activity['return_date']);
-                                            } else {
+                                            } elseif (isset($activity['checkout_date'])) {
                                                 echo format_date($activity['checkout_date']);
+                                            } else {
+                                                echo "Unknown date";
                                             }
                                             ?>
+                                        </td>
+                                        <td>
+                                            <?php if (isset($activity['activity_type']) && $activity['activity_type'] == 'equipment_added'): ?>
+                                                <a href="equipment_detail.php?id=<?php echo $activity['equipment_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Equipment</a>
+                                            <?php elseif (isset($activity['activity_type']) && $activity['activity_type'] == 'project_added'): ?>
+                                                <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Project</a>
+                                            <?php elseif (isset($activity['id']) && isset($activity['return_date']) && $activity['return_date']): ?>
+                                                <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Details</a>
+                                            <?php elseif (isset($activity['id'])): ?>
+                                                <?php if (is_admin()): ?>
+                                                    <a href="return_equipment.php?id=<?php echo $activity['id']; ?>" class="btn-warning" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Return</a>
+                                                <?php else: ?>
+                                                    <a href="project_detail.php?id=<?php echo $activity['project_id']; ?>" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Details</a>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
